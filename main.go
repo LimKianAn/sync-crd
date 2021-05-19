@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"os"
 
+	api "repo-url/api/v1"
+
 	"github.com/go-logr/logr"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,16 +36,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	api "repo-url/api/v1"
 )
 
 type crd = api.Instance
 
 var (
 	flags = struct {
-		metricsAddr, source, destination string
-		enableLeaderElection             bool
+		metricsAddr, namespace, source, destination string
+		enableLeaderElection                        bool
 	}{}
 	log           = cr.Log.WithName("setup")
 	scheme        = runtime.NewScheme()
@@ -104,6 +104,7 @@ func newMgr() (*extendedMgr, error) {
 		Port:               9443,
 		LeaderElection:     flags.enableLeaderElection,
 		LeaderElectionID:   "syncrd",
+		Namespace:          flags.namespace,
 	})
 	if err != nil {
 		log.Error(err, "unable to create a new manager")
@@ -139,7 +140,16 @@ func (r *instanceReconciler) Reconcile(ctx context.Context, req cr.Request) (cr.
 
 	source := &crd{}
 	if err := r.Source.Get(ctx, req.NamespacedName, source); err != nil {
-		return cr.Result{}, client.IgnoreNotFound(err)
+		if !errors.IsNotFound(err) {
+			return cr.Result{}, err
+		}
+
+		if err := r.Dest.Delete(ctx, crdWithObjKey(&req.NamespacedName)); err != nil {
+			return cr.Result{}, fmt.Errorf("failed to delete the destination instance: %w", err)
+		}
+		log.Info("destination instance deleted")
+
+		return cr.Result{}, nil
 	}
 	log.Info("source instance fetched")
 
@@ -163,6 +173,13 @@ func (r *instanceReconciler) Reconcile(ctx context.Context, req cr.Request) (cr.
 	return cr.Result{}, nil
 }
 
+func crdWithObjKey(objKey *types.NamespacedName) *crd {
+	c := &crd{}
+	c.Namespace = objKey.Namespace
+	c.Name = objKey.Name
+	return c
+}
+
 func ensureNamespace(ctx context.Context, k8sClient client.Client, namespace string) error {
 	nsObj := &core.Namespace{}
 	if err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, nsObj); err != nil {
@@ -180,6 +197,7 @@ func ensureNamespace(ctx context.Context, k8sClient client.Client, namespace str
 
 func parseflags() {
 	flag.StringVar(&flags.metricsAddr, "metrics-addr", ":9999", "The address the metric endpoint binds to")
+	flag.StringVar(&flags.namespace, "namespace", "", "The watched namespace in the source cluster")
 	flag.StringVar(&flags.source, "source", "/tmp/source", "The path to the kubeconfig of the source cluster")
 	flag.StringVar(&flags.destination, "dest", "/tmp/dest", "The path to the kubeconfig of the destination cluster")
 	flag.BoolVar(&flags.enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
