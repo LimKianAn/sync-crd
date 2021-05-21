@@ -24,21 +24,16 @@ import (
 
 	api "repo-url/api/v1"
 
-	"github.com/go-logr/logr"
+	"github.com/LimKianAn/syncrd/controllers"
 	core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 	cr "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
-
-type crd = api.Instance
 
 var (
 	flags = struct {
@@ -53,18 +48,9 @@ var (
 	}
 )
 
-type (
-	extendedMgr struct {
-		manager.Manager
-	}
-
-	instanceReconciler struct {
-		Source client.Client
-		Log    logr.Logger
-		Scheme *runtime.Scheme
-		Dest   client.Client
-	}
-)
+type extendedMgr struct {
+	manager.Manager
+}
 
 func init() {
 	utilruntime.Must(schemeBuilder.AddToScheme(scheme))
@@ -126,73 +112,13 @@ func (m *extendedMgr) registerCRDController() error {
 	}
 
 	return cr.NewControllerManagedBy(m).
-		For(&crd{}).
-		Complete(&instanceReconciler{
+		For(&controllers.CRD{}).
+		Complete(&controllers.CRDReconciler{
 			Source: m.GetClient(),
-			Log:    cr.Log.WithName("controllers").WithName("CRD"),
+			Log:    cr.Log.WithName("controllers").WithName("crd"),
 			Scheme: m.GetScheme(),
 			Dest:   destK8sClient,
 		})
-}
-
-func (r *instanceReconciler) Reconcile(ctx context.Context, req cr.Request) (cr.Result, error) {
-	log := r.Log.WithValues("instance", req.NamespacedName)
-
-	source := &crd{}
-	if err := r.Source.Get(ctx, req.NamespacedName, source); err != nil {
-		if !errors.IsNotFound(err) {
-			return cr.Result{}, err
-		}
-
-		if err := r.Dest.Delete(ctx, crdWithObjKey(&req.NamespacedName)); err != nil {
-			return cr.Result{}, fmt.Errorf("failed to delete the destination instance: %w", err)
-		}
-		log.Info("destination instance deleted")
-
-		return cr.Result{}, nil
-	}
-	log.Info("source instance fetched")
-
-	if err := ensureNamespace(ctx, r.Dest, req.NamespacedName.Namespace); err != nil {
-		return cr.Result{}, fmt.Errorf("failed to ensure namespace %s: %w", source.Namespace, err)
-	}
-	log.Info("namespace in destination cluster ensured")
-
-	dest := &crd{}
-	dest.Namespace = source.Namespace
-	dest.Name = source.Name
-	_, err := controllerutil.CreateOrPatch(ctx, r.Dest, dest, func() error {
-		dest.Spec = source.Spec
-		return nil
-	})
-	if err != nil {
-		return cr.Result{}, fmt.Errorf("failed to reconcile the destination instance: %w", err)
-	}
-	log.Info("destination instance reconciled")
-
-	return cr.Result{}, nil
-}
-
-func crdWithObjKey(objKey *types.NamespacedName) *crd {
-	c := &crd{}
-	c.Namespace = objKey.Namespace
-	c.Name = objKey.Name
-	return c
-}
-
-func ensureNamespace(ctx context.Context, k8sClient client.Client, namespace string) error {
-	nsObj := &core.Namespace{}
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, nsObj); err != nil {
-		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to fetch namespace %s: %w", namespace, err)
-		}
-
-		nsObj.Name = namespace
-		if err := k8sClient.Create(ctx, nsObj); err != nil {
-			return fmt.Errorf("failed to create namespace %s: %w", namespace, err)
-		}
-	}
-	return nil
 }
 
 func parseflags() {

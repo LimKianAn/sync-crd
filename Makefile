@@ -12,7 +12,7 @@ endif
 all: syncrd
 
 # Run tests
-test: fmt vet
+test: preparation
 	go test ./... -coverprofile cover.out
 
 REPO_URL ?= github.com/metal-stack/firewall-controller
@@ -20,14 +20,17 @@ REPO_VERSION ?= latest
 SUB_PATH ?= api/v1
 CRD_KIND ?= ClusterwideNetworkPolicy
 
+preparation: edit download fmt vet
+
 # Build manager binary
-syncrd: edit download fmt vet
+syncrd: preparation
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -o bin/syncrd main.go
 
 edit:
 	sed 's#repo-url => .*#repo-url => ${REPO_URL} ${REPO_VERSION}#' -i go.mod && \
 	sed 's#repo-url/.*#repo-url/${SUB_PATH}"#' -i main.go && \
-	sed 's#type crd = api.*#type crd = api.${CRD_KIND}#' -i main.go && \
+	sed 's#repo-url/.*#repo-url/${SUB_PATH}"#' -i controllers/instance_controller.go && \
+	sed 's#type CRD = api.*#type CRD = api.${CRD_KIND}#' -i controllers/instance_controller.go && \
 	go mod tidy
 
 download:

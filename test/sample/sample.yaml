@@ -1,0 +1,17 @@
+apiVersion: metal-stack.io/v1
+kind: ClusterwideNetworkPolicy
+metadata:
+  namespace: firewall
+  name: clusterwidenetworkpolicy-sample
+spec:
+  egress:
+  - to:
+    - cidr: 1.1.0.0/24
+      except:
+      - 1.1.1.0/16
+    - cidr: 8.8.8.8/32
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
