@@ -5,7 +5,9 @@ Synchronize instances of *Custom Resource Definition* between the source and des
 ## Binary & Run Binary
 
 ```bash
-# Build the binary. Here the default values are also given. The definition of `ClusterwideNetworkPolicy` can be found be in `github.com/metal-stack/firewall-controller/api/v1`. Modify these four variables to suit your repository.
+# Build the binary. Here the default values are also given.
+# The definition of `ClusterwideNetworkPolicy` can be found be in `github.com/metal-stack/firewall-controller/api/v1`.
+# Modify these four variables to suit your repository.
 make \
 REPO_URL=github.com/metal-stack/firewall-controller \
 REPO_VERSION=latest \
