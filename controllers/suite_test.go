@@ -46,11 +46,6 @@ var (
 	destClusterCfg     *rest.Config
 	destClusterClient  client.Client
 	destClusterTestEnv *envtest.Environment
-
-	// externalYAMLDir     = filepath.Join("..", "external")
-	// externalYAMLDirTest = filepath.Join(externalYAMLDir, "test")
-
-	// instance = &firewall.ClusterwideNetworkPolicy{}
 )
 
 func TestAPIs(t *testing.T) {
@@ -68,8 +63,9 @@ var _ = BeforeSuite(func(done Done) {
 
 	// Create test env for source cluster and start it
 	sourceClusterTestEnv = &envtest.Environment{
-		// Path to CRD for testing
-		CRDDirectoryPaths: []string{filepath.Join("..", "test", "crd")},
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			Paths: []string{filepath.Join("..", "test", "crd-cwnp.yaml")},
+		},
 	}
 	sourceClusterCfg = startTestEnv(sourceClusterTestEnv)
 
@@ -81,7 +77,9 @@ var _ = BeforeSuite(func(done Done) {
 
 	// Create test env for destination cluster and start it
 	destClusterTestEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "test", "crd")},
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			Paths: []string{filepath.Join("..", "test", "crd-cwnp.yaml")},
+		},
 	}
 	destClusterCfg = startTestEnv(destClusterTestEnv)
 

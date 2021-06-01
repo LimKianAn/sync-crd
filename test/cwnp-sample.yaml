@@ -2,7 +2,7 @@ apiVersion: metal-stack.io/v1
 kind: ClusterwideNetworkPolicy
 metadata:
   namespace: firewall
-  name: clusterwidenetworkpolicy-sample
+  name: sample
 spec:
   egress:
   - to:

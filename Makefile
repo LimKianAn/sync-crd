@@ -15,17 +15,17 @@ all: syncrd
 test: preparation
 	go test ./... -coverprofile cover.out
 
-REPO_URL ?= github.com/metal-stack/firewall-controller
-REPO_VERSION ?= latest
-SUB_PATH ?= api/v1
-CRD_KIND ?= ClusterwideNetworkPolicy
 
-preparation: edit download fmt vet
+preparation: edit download fmt
 
 # Build manager binary
 syncrd: preparation
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -o bin/syncrd main.go
 
+REPO_URL ?= github.com/metal-stack/firewall-controller
+REPO_VERSION ?= latest
+SUB_PATH ?= api/v1
+CRD_KIND ?= ClusterwideNetworkPolicy
 edit:
 	sed 's#repo-url => .*#repo-url => ${REPO_URL} ${REPO_VERSION}#' -i go.mod && \
 	sed 's#repo-url/.*#repo-url/${SUB_PATH}"#' -i main.go && \
@@ -58,7 +58,7 @@ vet:
 	go vet ./...
 
 # Build the docker image
-docker-build: edit test syncrd
+docker-build: syncrd
 	docker build . -t ${IMG}
 
 # Push the docker image

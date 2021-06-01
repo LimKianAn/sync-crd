@@ -41,12 +41,9 @@ var _ = Describe("crd controller", func() {
 	)
 	source := &firewall.ClusterwideNetworkPolicy{}
 
-	BeforeEach(func() {})
-	AfterEach(func() {})
-
 	Context("syncing the change between source and destination cluster", func() {
 		It("should create the same instance in destination cluster upon a new instance in source cluster", func() {
-			Expect(createInstance(sourceClusterClient, filepath.Join("..", "test", "sample", "sample.yaml"), source)).Should(Succeed())
+			Expect(createInstance(sourceClusterClient, filepath.Join("..", "test", "cwnp-sample.yaml"), source)).Should(Succeed())
 			Eventually(func() bool {
 				dest := &firewall.ClusterwideNetworkPolicy{}
 				if err := destClusterClient.Get(newCtx(), client.ObjectKeyFromObject(source), dest); err != nil {
