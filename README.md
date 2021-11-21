@@ -2,7 +2,7 @@
 
 Synchronize instances of *Custom Resource Definition* between the source and destination cluster.
 
-## Binary & Run Binary
+## Build & Run Binary
 
 ```bash
 # Build the binary. Here the default values are also given.
